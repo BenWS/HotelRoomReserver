@@ -54,7 +54,7 @@ function Hotel(databaseClient) {
       , oceanView:oceanView
       , smokingAllowed:smokingAllowed});
 
-  console.log(result);
+  return result.map(element => element.roomID);
 }
 
 Hotel.prototype.createCustomer = function(firstName, lastName, username, password) {
@@ -78,14 +78,21 @@ Hotel.prototype.reservationExists = async function(roomID, startDate, endDate) {
       , startDate:{$gte:new Date(startDate)}
       , endDate:{$lte:new Date(endDate)}}
     , {roomID:1});
-  var availableRooms = result.map(element => element.roomID);
+  var reservedRooms = await result.map(element => element.roomID);
+  // console.log(result);
 
-  if(availableRooms.length > 0) {return true};
-  if(availableRooms.length == 0) {return false};
+  if(reservedRooms.length == 0) {return false};
+  if(reservedRooms.length > 0) {return true};
 }
 
-Hotel.prototype.createReservation = function(roomID, startDate, endDate, customerID) {
-
+Hotel.prototype.createReservation = async function(roomID, startDate, endDate, customerID) {
+  var reservationExists = await this.reservationExists(roomID, startDate, endDate);
+  if(reservationExists) {
+    return false;
+  } else if(!reservationExists) {
+    var result = await this.databaseClient.insert('Reservation', {roomID:roomID, startDate:new Date(startDate), endDate:new Date(endDate), customerID:customerID});
+    return true;
+  }
 }
 
 function Customer(firstName, lastName, customerID) {

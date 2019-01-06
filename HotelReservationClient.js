@@ -6,35 +6,15 @@ var Customer = HotelReservation.Customer;
 var hotel = new Hotel(new HotelReservation.DatabaseClient('Hotel', 'MongoDB://localhost:27017'));
 
 async function Main() {
-  /*TEMPORARY: NEXT STEPS
-
-  1) Require user to
-    a) Log in
-    b) Create new account
-  2) Require user to specify action
-    Cancel Reservation
-    Create Reservation
-  2) Request
-    Arrival Date
-    Departure Date
-    Preferred Room Sizes
-    Ocean view
-    Smoker/Non-Smoker
-  3) Provide user available rooms for given criteria
-  4) Save user's selection to the database
-  5) Allow user to
-    Create Reservation
-    Cancel Reservation
-    Exit Program
-  */
-
-  // var answer = readLine.keyInSelect(['Yes', 'No'], 'Welcome. Are you an existing user? ');
+  var answer = readLine.keyInSelect(['Yes', 'No'], 'Welcome. Are you an existing user? ');
   console.log(answer);
 
   if (answer == 0) {
     // request user log-in with username, password
-    var userName = readLine.question('User Name: ');
-    var password = readLine.question('Password: ');
+    // var userName = readLine.question('User Name: ');
+    // var password = readLine.question('Password: ');
+    var userName = 'benShippey';
+    var password = 'password3';
 
     var customer = await hotel.retrieveCustomer(userName, password);
   }
@@ -51,13 +31,28 @@ async function Main() {
   }
 
   console.log(`\rWelcome ${customer.firstName}.`)
-  var startDate = readLine.question('What date do you wish to arrive at the Hotel (MM/DD/YYYY)? ');
-  var endDate = readLine.question('What date do you expect to depart from the Hotel (MM/DD/YYYY)? ');
-  var roomSize = readLine.question(['Small','Medium','Large'],'Which room size do you prefer? ')
-  var oceanView = readLine.question(['Yes','No'],'Do you wish for a room with an ocean view? ');
-  var isSmoker = readLine.question(['Yes', 'No'],'Do you smoke cigarrettes?');
 
-  var rooms = hotel.retreiveRooms(size, smokingAllowed, oceanView, startDate, endDate);
+  var roomSizeOptions = ['Small','Medium','Large'];
+  var oceanViewOptions = ['Yes','No'];
+  var isSmokerOptions = ['Yes', 'No'];
+
+  // var startDate = readLine.question('What date do you wish to arrive at the Hotel (MM/DD/YYYY)? ');
+  // var endDate = readLine.question('What date do you expect to depart from the Hotel (MM/DD/YYYY)? ');
+  // var roomSize = readLine.keyInSelect(roomSizeOptions,'Which room size do you prefer? ')
+  // var oceanView = readLine.keyInSelect(oceanViewOptions,'Do you wish for a room with an ocean view? ');
+  // var isSmoker = readLine.keyInSelect(isSmokerOptions,'Do you smoke cigarrettes?');
+
+  var startDate = '05/10/2019';
+  var endDate = '05/20/2019';
+  var roomSize = 0;
+  var oceanView = 1;
+  var isSmoker = 0;
+
+  var availableRooms = await hotel.retrieveRooms(roomSizeOptions[roomSize], isSmokerOptions[isSmoker], oceanViewOptions[oceanView], startDate, endDate);
+
+  var roomSelection = readLine.keyInSelect(availableRooms, 'These are the available rooms. Please make a selection: ');
+  console.log(await hotel.createReservation(availableRooms[roomSelection], startDate, endDate, customer.customerID));
+
 }
 
 Main();
