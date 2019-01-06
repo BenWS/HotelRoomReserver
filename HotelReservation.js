@@ -1,21 +1,17 @@
-const MongoClient = require('mongodb').MongoClient;
-
 //https://mongodb.github.io/node-mongodb-native/
 // https://docs.mongodb.com/manual/tutorial/query-documents/
-var connectionURL = 'MongoDB://localhost:27017'
-var mongoClient = new MongoClient(connectionURL);
+const MongoClient = require('mongodb').MongoClient;
 
 function DatabaseClient(database, connectionURL) {
-  this.mongoClient = new MongoClient(connectionURL);
+  this.connectionURL = connectionURL;
   this.database = database;
 }
 
-DatabaseClient.prototype.select = async function(collection, filter) {
-  var client = await this.mongoClient.connect();
+DatabaseClient.prototype.select = async function(collection, filter, fields) {
+  var client = await new MongoClient(this.connectionURL).connect();
   var db = await client.db(this.database); //set database
   var collection = await db.collection(collection); //set collection
-
-  var result = await collection.find(filter).toArray();
+  var result = await collection.find(filter,{projection:fields}).toArray();
   await client.close();
   return result;
 }
@@ -29,11 +25,11 @@ DatabaseClient.prototype.update = function() {
 }
 
 DatabaseClient.prototype.insert = async function(collection, data) {
-  var client = await this.mongoClient.connect();
+  var client = await new MongoClient(this.connectionURL).connect();
   var db = await client.db(this.database); //set database
   var collection = await db.collection(collection); //set collection
 
-  var result = await collection.insert(data);
+  var result = await collection.insertOne(data);
   await client.close();
   return result;
 }
@@ -42,13 +38,28 @@ function Hotel(databaseClient) {
   this.databaseClient = databaseClient;
 }
 
- Hotel.prototype.getRooms = function(size, smokingAllowed, oceanView ) {
+ Hotel.prototype.retrieveRooms = async function(size, smokingAllowed, oceanView, startDate, endDate ) {
   //return hotel rooms matching query conditions
+  var result = await this.databaseClient.select(
+    'Reservation'
+    , {startDate:{$gte:new Date(startDate)}
+        , endDate:{$lte:new Date(endDate)}}
+      , {roomID:1});
+  var unavailableRooms = result.map(element => element.roomID);
+
+  var result = await this.databaseClient.select(
+    'Room'
+    , {roomID:{$not:{$in:unavailableRooms}}
+      , roomSize:size
+      , oceanView:oceanView
+      , smokingAllowed:smokingAllowed});
+
+  console.log(result);
 }
 
-Hotel.prototype.createCustomer = function(username, password) {
-  //create new customer record
-
+Hotel.prototype.createCustomer = function(firstName, lastName, username, password) {
+  //create new customer record in database
+  return this.databaseClient.insert('Customer',{firstName:firstName, lastName:lastName, username:username, password:password});
 }
 
 Hotel.prototype.retrieveCustomer = async function(username, password) {
@@ -56,7 +67,7 @@ Hotel.prototype.retrieveCustomer = async function(username, password) {
   var docs = await this.databaseClient.select('Customer',{username:username, password:password});
   var firstName = docs[0].firstName;
   var lastName = docs[0].lastName;
-  var customerID = docs[0].customerID;
+  var customerID = docs[0]._id;
   return new Customer(firstName, lastName, customerID); //create new customer object using retrieved information
 }
 
@@ -65,8 +76,12 @@ Hotel.prototype.reservationExists = async function(roomID, startDate, endDate) {
     'Reservation'
     , {roomID:roomID
       , startDate:{$gte:new Date(startDate)}
-      , endDate:{$lte:new Date(endDate)}});
-  console.log(result);
+      , endDate:{$lte:new Date(endDate)}}
+    , {roomID:1});
+  var availableRooms = result.map(element => element.roomID);
+
+  if(availableRooms.length > 0) {return true};
+  if(availableRooms.length == 0) {return false};
 }
 
 Hotel.prototype.createReservation = function(roomID, startDate, endDate, customerID) {
